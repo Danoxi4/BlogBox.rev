@@ -56,6 +56,7 @@ type Tag {
 type Mutation {
     registerUser(username: String!, email: String!, password: String!): User
     login(username: String!, password: String!): User
+    resetPassword(password: String!) : User
 }
 
 
@@ -91,17 +92,21 @@ const resolvers = {
               }
             else{
                 console.log('logged in successfully');
+                context.user = user;
                 return user
             }
+        },
+        resetPassword : (parent, args, context) => { 
+            
         }
-        
+
     }
 }
 
 
 const server = new ApolloServer({
     typeDefs,
-    resolvers 
+    resolvers
   })
   
 const port = 7000; // Specify the desired port number
