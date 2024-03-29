@@ -30,6 +30,8 @@ const typeDefs = gql`
   type User {
     id: ID
     username: String!
+    firstName: String!
+    lastName: String!
     email: String!
     password: String!
     createdAt: String
@@ -75,8 +77,7 @@ const typeDefs = gql`
     createArticle(title: String!, content: String!): Article!
     editArticle(title: String!, newTitle: String!, newContent: String!): Article!
     deleteArticle(id: ID!): Boolean! # Delete an article by its ID
-    editProfile(id: ID!, firstName: String, lastName: String): User! # Edit a user profile
-    viewProfile(id: ID!): User # View a user profile (optional)
+    editProfile(username: String, firstName: String, lastName:String, password: String): User! # Edit a user profile
     deleteProfile(id: ID!): Boolean! # Delete a user profile
     # Edit and delete article mutations (implement later)
   }
@@ -88,6 +89,7 @@ const typeDefs = gql`
   }
 
 `;
+
 
 const resolvers = {
   Query: {
@@ -202,15 +204,116 @@ const resolvers = {
         throw new Error(error.message); // Rethrow the error with the original message
       }
     },
-    deleteArticle: ( parent, args, context ) => { },
-    editProfile: ( parent, args, context ) => { },
-    viewProfile: ( parent, args, context ) => { },
-    deleteProfile: ( parent, args, context ) => { },
+    deleteArticle: (parent, { id }, context) => {
+      if (!context.currentUser) {
+        throw new Error('User must be logged in to delete articles');
+      }
     
-
-
-
+      const articleIndex = articles.findIndex(article => article.id === id);
     
+      if (articleIndex === -1) {
+        throw new Error('Article not found');
+      }
+    
+      // **Authorization check:**
+      // - If you have a role-based authorization system, check if the logged-in user has the necessary permission (e.g., "admin" or "author" of the article) to delete articles.
+      // - Replace the following with your specific authorization logic.
+      if (articles[articleIndex].author.id !== context.currentUser.id) {
+        throw new Error('Unauthorized deletion: You can only delete your own articles or articles with admin privileges.');
+      }
+    
+      articles.splice(articleIndex, 1); // Remove article from the array
+    
+      return true;
+    },
+    editProfile: (parent, {  username, firstName, lastName, password }, context) => {
+      if (!context.currentUser) {
+        throw new Error('User must be logged in to edit profile');
+      }
+    
+      const userIndex = users.findIndex(user => user.id === id);
+    
+      if (userIndex === -1) {
+        throw new Error('User not found');
+      }
+    
+      // **Validation and sanitization:**
+      // - Implement validation rules for username, firstName, and lastName (e.g., minimum length, allowed characters).
+      // - Sanitize user input to prevent potential security vulnerabilities (e.g., XSS attacks).
+      // - Replace the following with your specific validation and sanitization logic.
+      if (username && username.length < 3) {
+        throw new Error('Username must be at least 3 characters long.');
+      }
+    
+      if (firstName && firstName.length < 3) {
+        throw new Error('First name must be at least 3 characters long.');
+      }
+    
+      if (lastName && lastName.length < 3) {
+        throw new Error('Last name must be at least 3 characters long.');
+      }
+    
+      // Sanitize user input (example using a hypothetical `sanitizeInput` function)
+      const sanitizedUsername = sanitizeInput(username);
+      const sanitizedFirstName = sanitizeInput(firstName);
+      const sanitizedLastName = sanitizeInput(lastName);
+    
+      const updatedUser = {
+        ...users[userIndex], // Copy existing user data
+        username: sanitizedUsername || users[userIndex].username, // Update username if provided
+        firstName: sanitizedFirstName || users[userIndex].firstName, // Update firstName if provided
+        lastName: sanitizedLastName || users[userIndex].lastName, // Update lastName if provided,
+      };
+    
+      // **Password update logic:**
+      if (password) {
+        // Validate password strength (consider using a password hashing library)
+        // Replace the following with your password hashing logic
+        const hashedPassword = hashPassword(password); // Hypothetical password hashing function
+        updatedUser.password = hashedPassword;
+      }
+    
+      users[userIndex] = updatedUser; // Update user data in the array
+    
+      return updatedUser;
+    },
+    deleteProfile: (parent, { id }, context) => {
+      if (!context.currentUser) {
+        throw new Error('User must be logged in to delete profile');
+      }
+    
+      const userIndex = users.findIndex(user => user.id === id);
+    
+      if (userIndex === -1) {
+        throw new Error('User not found');
+      }
+    
+      // **Cascading deletes:**
+      // - If users have associated data (e.g., articles, comments), implement logic to handle their deletion as well.
+      // - Consider using transactions or appropriate data integrity checks to ensure consistent database updates.
+      // - Replace the following with your specific logic for handling cascading deletes.
+      const articlesToDelete = articles.filter(article => article.author.id === id);
+      articlesToDelete.forEach(article => {
+        const articleIndex = articles.findIndex(a => a.id === article.id);
+        if (articleIndex !== -1) {
+          articles.splice(articleIndex, 1);
+        }
+      });
+    
+      // **Additional checks:**
+      // - Consider preventing users from deleting their own profiles if they have outstanding tasks or associated data that needs to be migrated.
+      // - Replace the following with your specific logic for additional checks.
+      if (id === context.currentUser.id) {
+        throw new Error('You cannot delete your own profile at this time. Please contact support for assistance.');
+      }
+    
+      users.splice(userIndex, 1); // Remove user from the array
+    
+      // Destroy the user's session (optional)
+      context.req.session.destroy();
+    
+      return true;
+    },
   },
 };
 
@@ -235,7 +338,7 @@ const server = new ApolloServer({
     allowedHeaders: ['Content-Type', 'Authorization'],
   }})
 
-const port = 8516; // Specify the desired port number
+const port = 8555; // Specify the desired port number
 
 const url = 'http://localhost'
   // Start the server on the specified port
