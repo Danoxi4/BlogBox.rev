@@ -28,23 +28,44 @@ function verifyAndDecodeToken(token, secretKey) {
 const typeDefs = gql`
 
   type User {
-    id: ID!
+    id: ID
     username: String!
     email: String!
-    # ... other user fields
-  }
+    password: String!
+    createdAt: String
+    updatedAt: String!
+    followers: [User]
+    following: [User]
+    articles : [Article]
+  } 
 
   type Query {
-    users: [User!]!
+      users: User
   }
 
   # Article Schema Types
-  type Article {
+  type Article { 
     id: ID!
     title: String!
     content: String!
     author: User!
-    # ... other article fields
+    createdAt: String!
+    updatedAt: String!
+    category: Category
+    tags: [Tag]!
+  }
+
+  type Category {
+    id: ID!
+    name: String!
+    description: String
+    articles: [Article]!
+  }
+
+  type Tag {
+    id: ID!
+    name: String!
+    articles: [Article]!
   }
 
   type Mutation {
@@ -52,6 +73,11 @@ const typeDefs = gql`
     login(username: String!, password: String!): LoginResponse!
     resetPassword(newPassword: String!): User!
     createArticle(title: String!, content: String!): Article!
+    editArticle(title: String!, newTitle: String!, newContent: String!): Article!
+    deleteArticle(id: ID!): Boolean! # Delete an article by its ID
+    editProfile(id: ID!, firstName: String, lastName: String): User! # Edit a user profile
+    viewProfile(id: ID!): User # View a user profile (optional)
+    deleteProfile(id: ID!): Boolean! # Delete a user profile
     # Edit and delete article mutations (implement later)
   }
 
@@ -151,6 +177,40 @@ const resolvers = {
         throw new Error(error.message || 'An error occurred while creating the article'); // Provide a more generic error for non-specific issues
       }
     },
+    editArticle: (parent, { title, newTitle, newContent }, context) => {
+      try {
+        // Check if user is logged in (assuming context.currentUser exists)
+        if (!context.currentUser) {
+          throw new Error('User must be logged in to edit articles');
+        }
+    
+        // Find the article index by title
+        const articleIndex = articles.findIndex(article => article.title === title);
+    
+        // Check if article exists
+        if (articleIndex === -1) {
+          throw new Error('Article not found');
+        }
+    
+        // Update article properties
+        articles[articleIndex].title = newTitle || title; // Update title if newTitle provided, otherwise keep existing title
+        articles[articleIndex].content = newContent;
+        articles[articleIndex].updatedAt = new Date().toISOString();
+    
+        return articles[articleIndex]; // Return the updated article
+      } catch (error) {
+        throw new Error(error.message); // Rethrow the error with the original message
+      }
+    },
+    deleteArticle: ( parent, args, context ) => { },
+    editProfile: ( parent, args, context ) => { },
+    viewProfile: ( parent, args, context ) => { },
+    deleteProfile: ( parent, args, context ) => { },
+    
+
+
+
+    
   },
 };
 
@@ -175,7 +235,7 @@ const server = new ApolloServer({
     allowedHeaders: ['Content-Type', 'Authorization'],
   }})
 
-const port = 7000; // Specify the desired port number
+const port = 8516; // Specify the desired port number
 
 const url = 'http://localhost'
   // Start the server on the specified port
