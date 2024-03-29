@@ -75,10 +75,10 @@ const typeDefs = gql`
     login(username: String!, password: String!): LoginResponse!
     resetPassword(newPassword: String!): User!
     createArticle(title: String!, content: String!): Article!
-    editArticle(title: String!, newTitle: String!, newContent: String!): Article!
-    deleteArticle(id: ID!): Boolean! # Delete an article by its ID
+    editArticle(title: String!, newTitle: String, newContent: String): Article!
+    deleteArticle(title: String!): Boolean! # Delete an article by its ID
     editProfile(username: String, firstName: String, lastName:String, password: String): User! # Edit a user profile
-    deleteProfile(id: ID!): Boolean! # Delete a user profile
+    deleteProfile(username: String! ): Boolean! # Delete a user profile
     # Edit and delete article mutations (implement later)
   }
 
@@ -86,7 +86,7 @@ const typeDefs = gql`
     message: String!
     token: String!
     user: User!
-  }
+  } 
 
 `;
 
@@ -197,6 +197,7 @@ const resolvers = {
         // Update article properties
         articles[articleIndex].title = newTitle || title; // Update title if newTitle provided, otherwise keep existing title
         articles[articleIndex].content = newContent;
+      //  articles[articleIndex].category = category;
         articles[articleIndex].updatedAt = new Date().toISOString();
     
         return articles[articleIndex]; // Return the updated article
@@ -204,12 +205,12 @@ const resolvers = {
         throw new Error(error.message); // Rethrow the error with the original message
       }
     },
-    deleteArticle: (parent, { id }, context) => {
+    deleteArticle: (parent, { title }, context) => {
       if (!context.currentUser) {
         throw new Error('User must be logged in to delete articles');
       }
     
-      const articleIndex = articles.findIndex(article => article.id === id);
+      const articleIndex = articles.findIndex(article => article.title === title);
     
       if (articleIndex === -1) {
         throw new Error('Article not found');
@@ -231,7 +232,7 @@ const resolvers = {
         throw new Error('User must be logged in to edit profile');
       }
     
-      const userIndex = users.findIndex(user => user.id === id);
+      const userIndex = users.findIndex(user => user.username === username);
     
       if (userIndex === -1) {
         throw new Error('User not found');
@@ -277,12 +278,12 @@ const resolvers = {
     
       return updatedUser;
     },
-    deleteProfile: (parent, { id }, context) => {
+    deleteProfile: (parent, { username }, context) => {
       if (!context.currentUser) {
         throw new Error('User must be logged in to delete profile');
       }
     
-      const userIndex = users.findIndex(user => user.id === id);
+      const userIndex = users.findIndex(user => user.username === username);
     
       if (userIndex === -1) {
         throw new Error('User not found');
